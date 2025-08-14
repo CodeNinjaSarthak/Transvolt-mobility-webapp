@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>TransVolt Charts</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        margin: 24px;
+      }
+      h1 {
+        margin-bottom: 0.5rem;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 16px;
+      }
+      .card {
+        border: 1px solid #eee;
+        border-radius: 12px;
+        padding: 12px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+      }
+      img {
+        width: 100%;
+        height: auto;
+        border-radius: 8px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th,
+      td {
+        border-bottom: 1px solid #eee;
+        padding: 6px 8px;
+        text-align: left;
+      }
+      .muted {
+        color: #666;
+        font-size: 14px;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+        margin: 16px 0;
+      }
+      .download {
+        margin: 8px 0 16px;
+      }
+      .error {
+        color: #b00020;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>TransVolt Voltage Dashboard</h1>
+    <p class="muted">
+      Upload a CSV with <strong>Timestamp</strong> and
+      <strong>Values</strong> columns (Timestamp format:
+      <code>%d/%m/%y %H:%M</code>).
+    </p>
+
+    <form method="POST" enctype="multipart/form-data">
+      <input type="file" name="file" accept=".csv" />
+      <button type="submit">Analyze</button>
+    </form>
+
+    {% if error %}
+    <p class="error">Error: {{ error }}</p>
+    {% endif %}
+
+    <div class="grid" style="margin-top: 16px">
+      {% for p in plots %}
+      <div class="card">
+        <img src="{{ url_for('static_files', filename=p) }}" alt="{{ p }}" />
+        <div class="muted">{{ p.replace('_',' ').replace('.png','') }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="row download">
+      {% if accel_csv %}
+      <a href="{{ url_for('static_files', filename=accel_csv) }}" download
+        >Download Downward Acceleration Points (CSV)</a
+      >
+      {% endif %}
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Local Peaks</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in tables.peaks %}
+            <tr>
+              <td>{{ r.Timestamp }}</td>
+              <td>{{ r.Value }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Local Troughs</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in tables.troughs %}
+            <tr>
+              <td>{{ r.Timestamp }}</td>
+              <td>{{ r.Value }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Voltage &lt; 20</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in tables.below20 %}
+            <tr>
+              <td>{{ r.Timestamp }}</td>
+              <td>{{ r.Value }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Downward Acceleration Points</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in tables.accel %}
+            <tr>
+              <td>{{ r.Timestamp }}</td>
+              <td>{{ r.Value }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </body>
+</html>
