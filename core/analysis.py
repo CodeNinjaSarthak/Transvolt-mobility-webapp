@@ -23,9 +23,8 @@ def load_df(csv_path=None, uploaded_bytes=None):
     else:
         raise FileNotFoundError("CSV not found. Provide a valid path or upload a file.")
     # Ensure expected columns
-    assert (
-        "Timestamp" in df.columns and "Values" in df.columns
-    ), "CSV must contain 'Timestamp' and 'Values' columns."
+    if "Timestamp" not in df.columns or "Values" not in df.columns:
+        raise ValueError("CSV must contain 'Timestamp' and 'Values' columns.")
     # Parse & sort
     df["Timestamp"] = pd.to_datetime(
         df["Timestamp"], format="%d/%m/%y %H:%M", errors="coerce"

@@ -1,176 +1,241 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>TransVolt Charts</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style>
-      body {
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-        margin: 24px;
-      }
-      h1 {
-        margin-bottom: 0.5rem;
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        gap: 16px;
-      }
-      .card {
-        border: 1px solid #eee;
-        border-radius: 12px;
-        padding: 12px;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-      }
-      img {
-        width: 100%;
-        height: auto;
-        border-radius: 8px;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 14px;
-      }
-      th,
-      td {
-        border-bottom: 1px solid #eee;
-        padding: 6px 8px;
-        text-align: left;
-      }
-      .muted {
-        color: #666;
-        font-size: 14px;
-      }
-      .row {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 8px;
-        margin: 16px 0;
-      }
-      .download {
-        margin: 8px 0 16px;
-      }
-      .error {
-        color: #b00020;
-      }
-    </style>
-  </head>
-  <body>
-    <h1>TransVolt Voltage Dashboard</h1>
-    <p class="muted">
-      Upload a CSV with <strong>Timestamp</strong> and
-      <strong>Values</strong> columns (Timestamp format:
-      <code>%d/%m/%y %H:%M</code>).
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>TransVolt — Voltage Analysis Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%236366f1'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='central' text-anchor='middle' font-family='system-ui%2C sans-serif' font-weight='800' font-size='13' fill='%23fff'%3ETV%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+
+<!-- ── Navbar ──────────────────────────────────────────────────────────────── -->
+<nav class="navbar">
+  <div class="navbar-logo">TV</div>
+  <span class="navbar-title">TransVolt</span>
+  <span class="navbar-tagline">Voltage Time-Series Analysis</span>
+  <span class="navbar-badge">v1.0</span>
+</nav>
+
+<!-- ── Main ────────────────────────────────────────────────────────────────── -->
+<div class="main">
+
+  <!-- Upload card -->
+  <div class="upload-section">
+    <h2>Upload Voltage Data</h2>
+    <p>
+      Provide a CSV with <strong>Timestamp</strong> and <strong>Values</strong> columns
+      (Timestamp format: <code>%d/%m/%y %H:%M</code>).
+      Leave blank to run the built-in sample dataset.
     </p>
-
-    <form method="POST" enctype="multipart/form-data">
-      <input type="file" name="file" accept=".csv" />
-      <button type="submit">Analyze</button>
-    </form>
-
-    {% if error %}
-    <p class="error">Error: {{ error }}</p>
-    {% endif %}
-
-    <div class="grid" style="margin-top: 16px">
-      {% for p in plots %}
-      <div class="card">
-        <img src="{{ url_for('static_files', filename=p) }}" alt="{{ p }}" />
-        <div class="muted">{{ p.replace('_',' ').replace('.png','') }}</div>
+    <form id="upload-form" method="POST" enctype="multipart/form-data">
+      <div class="upload-row">
+        <label class="file-label">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+               viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <span class="file-label-text">Choose CSV file</span>
+          <input type="file" name="file" accept=".csv" id="file-input" />
+        </label>
+        <button class="btn-analyze" type="submit" id="analyze-btn">Analyze</button>
       </div>
-      {% endfor %}
-    </div>
+    </form>
+  </div>
 
-    <div class="row download">
-      {% if accel_csv %}
-      <a href="{{ url_for('static_files', filename=accel_csv) }}" download
-        >Download Downward Acceleration Points (CSV)</a
-      >
-      {% endif %}
-    </div>
+  <!-- Error banner -->
+  {% if error %}
+  <div class="error-banner">
+    <strong>Error:</strong> {{ error }}
+  </div>
+  {% endif %}
 
-    <div class="grid">
-      <div class="card">
+  <!-- Stats row -->
+  {% if plots %}
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Local Peaks</div>
+      <div class="stat-value">{{ peaks_count }}</div>
+      <div class="stat-sub">voltage maxima</div>
+    </div>
+    <div class="stat-card sky">
+      <div class="stat-label">Local Troughs</div>
+      <div class="stat-value">{{ troughs_count }}</div>
+      <div class="stat-sub">voltage minima</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-label">Below 20 V</div>
+      <div class="stat-value">{{ below20_count }}</div>
+      <div class="stat-sub">low-voltage readings</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="stat-label">Accel. Points</div>
+      <div class="stat-value">{{ accel_count }}</div>
+      <div class="stat-sub">downward cycles</div>
+    </div>
+  </div>
+
+  <!-- Plots -->
+  <p class="section-heading">Visualisations</p>
+  <div class="plot-grid">
+    {% for p in plots %}
+    <div class="plot-card">
+      <img src="{{ url_for('static_files', filename=p.filename) }}"
+           alt="{{ p.label }}" loading="lazy" />
+      <div class="plot-caption">{{ p.label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Download -->
+  {% if accel_csv %}
+  <div class="download-bar">
+    <a class="btn-download"
+       href="{{ url_for('static_files', filename=accel_csv) }}" download>
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
+           viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Download Downward Acceleration Points (CSV)
+    </a>
+  </div>
+  {% endif %}
+
+  <!-- Tables -->
+  <p class="section-heading">Data Tables</p>
+  <div class="tables-grid">
+
+    <!-- Peaks -->
+    <div class="table-card">
+      <div class="table-card-header">
         <h3>Local Peaks</h3>
+        <span class="badge indigo">{{ peaks_count }} rows</span>
+      </div>
+      <div class="table-body-scroll">
+        {% if tables.peaks %}
         <table>
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>Value</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Timestamp</th><th>Value</th></tr></thead>
           <tbody>
             {% for r in tables.peaks %}
             <tr>
               <td>{{ r.Timestamp }}</td>
-              <td>{{ r.Value }}</td>
+              <td>{{ "%.4f"|format(r.Value) }}</td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
+        {% else %}
+        <div class="empty-state">No peaks detected.</div>
+        {% endif %}
       </div>
+    </div>
 
-      <div class="card">
+    <!-- Troughs -->
+    <div class="table-card">
+      <div class="table-card-header">
         <h3>Local Troughs</h3>
+        <span class="badge sky">{{ troughs_count }} rows</span>
+      </div>
+      <div class="table-body-scroll">
+        {% if tables.troughs %}
         <table>
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>Value</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Timestamp</th><th>Value</th></tr></thead>
           <tbody>
             {% for r in tables.troughs %}
             <tr>
               <td>{{ r.Timestamp }}</td>
-              <td>{{ r.Value }}</td>
+              <td>{{ "%.4f"|format(r.Value) }}</td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
+        {% else %}
+        <div class="empty-state">No troughs detected.</div>
+        {% endif %}
       </div>
+    </div>
 
-      <div class="card">
+    <!-- Below 20 -->
+    <div class="table-card">
+      <div class="table-card-header">
         <h3>Voltage &lt; 20</h3>
+        <span class="badge red">{{ below20_count }} rows</span>
+      </div>
+      <div class="table-body-scroll">
+        {% if tables.below20 %}
         <table>
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>Value</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Timestamp</th><th>Value</th></tr></thead>
           <tbody>
             {% for r in tables.below20 %}
             <tr>
               <td>{{ r.Timestamp }}</td>
-              <td>{{ r.Value }}</td>
+              <td>{{ "%.4f"|format(r.Value) }}</td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
+        {% else %}
+        <div class="empty-state">No readings below 20 V.</div>
+        {% endif %}
       </div>
+    </div>
 
-      <div class="card">
+    <!-- Downward Acceleration -->
+    <div class="table-card">
+      <div class="table-card-header">
         <h3>Downward Acceleration Points</h3>
+        <span class="badge amber">{{ accel_count }} rows</span>
+      </div>
+      <div class="table-body-scroll">
+        {% if tables.accel %}
         <table>
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>Value</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Timestamp</th><th>Value</th></tr></thead>
           <tbody>
             {% for r in tables.accel %}
             <tr>
               <td>{{ r.Timestamp }}</td>
-              <td>{{ r.Value }}</td>
+              <td>{{ "%.4f"|format(r.Value) }}</td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
+        {% else %}
+        <div class="empty-state">No downward acceleration points found.</div>
+        {% endif %}
       </div>
     </div>
-  </body>
+
+  </div>
+  {% endif %}
+
+</div><!-- /.main -->
+
+<!-- ── Footer ──────────────────────────────────────────────────────────────── -->
+<footer class="footer">
+  <span class="footer-label">Built with</span>
+  <span class="tech-tag">Python</span>
+  <span class="tech-tag">Flask</span>
+  <span class="tech-tag">pandas</span>
+  <span class="tech-tag">NumPy</span>
+  <span class="tech-tag">SciPy</span>
+  <span class="tech-tag">Matplotlib</span>
+  <span class="tech-tag">Gunicorn</span>
+</footer>
+
+<script>
+  // Show selected file name in the label
+  document.getElementById('file-input').addEventListener('change', function () {
+    var label = document.querySelector('.file-label-text');
+    label.textContent = this.files.length ? this.files[0].name : 'Choose CSV file';
+  });
+
+  // Spinner + disable button on submit
+  document.getElementById('upload-form').addEventListener('submit', function () {
+    var btn = document.getElementById('analyze-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Analysing\u2026';
+  });
+</script>
+
+</body>
 </html>
