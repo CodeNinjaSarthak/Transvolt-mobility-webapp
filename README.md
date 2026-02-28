@@ -44,7 +44,7 @@ A Flask web application that performs automated analysis of voltage time-series 
 
 ```bash
 # 1. Clone
-git clone https://github.com/<your-username>/transvolt-mobility-webapp.git
+git clone https://github.com/CodeNinjaSarthak/transvolt-mobility-webapp.git
 cd transvolt-mobility-webapp
 
 # 2. Create a virtual environment
